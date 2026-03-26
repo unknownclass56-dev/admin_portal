@@ -21,6 +21,7 @@ interface UserProfile {
   is_verified: boolean;
   computer_id: string;
   trial_end_date: string;
+  status: string;
   created_at: string;
 }
 
@@ -147,13 +148,19 @@ export default function AdminDashboard() {
 
   const toggleUserStatus = async (user: UserProfile) => {
     setActionLoading('status-' + user.id);
+    const isCurrentlyDisabled = user.status === 'disabled';
+    
     const { error } = await supabase.from('user_profiles')
-      .update({ is_verified: !user.is_verified })
+      .update({ 
+        status: isCurrentlyDisabled ? 'active' : 'disabled',
+        is_verified: isCurrentlyDisabled ? true : user.is_verified // Auto-verify if re-enabling
+      })
       .eq('id', user.id);
+
     if (error) {
-      setNotification({ type: 'error', message: 'STATUS_TOGGLE_FAILED' });
+      setNotification({ type: 'error', message: 'STATUS_TOGGLE_FAILED: PROTOCOL_ERROR' });
     } else {
-      setNotification({ type: 'success', message: `ACCOUNT_${!user.is_verified ? 'ENABLED' : 'DISABLED'}` });
+      setNotification({ type: 'success', message: `ACCOUNT_${isCurrentlyDisabled ? 'RESTORED' : 'SUSPENDED'}` });
       fetchData();
     }
     setActionLoading(null);
@@ -382,9 +389,13 @@ export default function AdminDashboard() {
                       <td className="py-4 px-2 text-center">
                         <div className={cn(
                           "px-2 py-0.5 rounded-full text-[8px] font-black border inline-block",
-                          u.is_verified ? "border-green-500/30 text-green-500 bg-green-500/5" : "border-yellow-900/50 text-yellow-600/50"
+                          u.status === 'disabled' 
+                            ? "border-red-500 text-red-500 bg-red-950/20" 
+                            : u.is_verified 
+                              ? "border-green-500/30 text-green-500 bg-green-500/5" 
+                              : "border-yellow-900/50 text-yellow-600/50"
                         )}>
-                          {u.is_verified ? "VERIFIED" : "PENDING"}
+                          {u.status === 'disabled' ? "DISABLED" : (u.is_verified ? "VERIFIED" : "PENDING")}
                         </div>
                       </td>
                       <td className="py-4 pl-4 text-right relative">
@@ -415,7 +426,7 @@ export default function AdminDashboard() {
                                 </button>
                                 <button onClick={() => { toggleUserStatus(u); setIsActionMenuOpen(null); }} 
                                   className="w-full text-left px-4 py-2.5 text-[10px] text-green-100 hover:bg-green-500 hover:text-black flex items-center gap-3 border-b border-green-900/30">
-                                  {u.is_verified ? <UserMinus size={12} /> : <UserPlus size={12} />} {u.is_verified ? 'DISABLE_ACCOUNT' : 'RESTORE_ACCESS'}
+                                  {u.status === 'disabled' ? <UserPlus size={12} /> : <UserMinus size={12} />} {u.status === 'disabled' ? 'RESTORE_ACCESS' : 'DISABLE_ACCOUNT'}
                                 </button>
                                 <button onClick={() => { deleteUser(u); setIsActionMenuOpen(null); }} 
                                   className="w-full text-left px-4 py-2.5 text-[10px] text-red-500 hover:bg-red-500 hover:text-black flex items-center gap-3">
