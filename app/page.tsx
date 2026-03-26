@@ -21,7 +21,6 @@ interface UserProfile {
   is_verified: boolean;
   computer_id: string;
   trial_end_date: string;
-  status: string;
   created_at: string;
 }
 
@@ -148,12 +147,14 @@ export default function AdminDashboard() {
 
   const toggleUserStatus = async (user: UserProfile) => {
     setActionLoading('status-' + user.id);
-    const isCurrentlyDisabled = user.status === 'disabled';
+    const isCurrentlyDisabled = user.trial_end_date?.startsWith('1970-01-01');
     
     const { error } = await supabase.from('user_profiles')
       .update({ 
-        status: isCurrentlyDisabled ? 'active' : 'disabled',
-        is_verified: isCurrentlyDisabled ? true : user.is_verified // Auto-verify if re-enabling
+        is_verified: isCurrentlyDisabled ? true : false,
+        trial_end_date: isCurrentlyDisabled 
+          ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // Restore to 3-day trial
+          : '1970-01-01T00:00:00.000Z' // Disable marker
       })
       .eq('id', user.id);
 
@@ -389,13 +390,13 @@ export default function AdminDashboard() {
                       <td className="py-4 px-2 text-center">
                         <div className={cn(
                           "px-2 py-0.5 rounded-full text-[8px] font-black border inline-block",
-                          u.status === 'disabled' 
+                          u.trial_end_date?.startsWith('1970-01-01') 
                             ? "border-red-500 text-red-500 bg-red-950/20" 
                             : u.is_verified 
                               ? "border-green-500/30 text-green-500 bg-green-500/5" 
                               : "border-yellow-900/50 text-yellow-600/50"
                         )}>
-                          {u.status === 'disabled' ? "DISABLED" : (u.is_verified ? "VERIFIED" : "PENDING")}
+                          {u.trial_end_date?.startsWith('1970-01-01') ? "DISABLED" : (u.is_verified ? "VERIFIED" : "PENDING")}
                         </div>
                       </td>
                       <td className="py-4 pl-4 text-right relative">
@@ -426,7 +427,7 @@ export default function AdminDashboard() {
                                 </button>
                                 <button onClick={() => { toggleUserStatus(u); setIsActionMenuOpen(null); }} 
                                   className="w-full text-left px-4 py-2.5 text-[10px] text-green-100 hover:bg-green-500 hover:text-black flex items-center gap-3 border-b border-green-900/30">
-                                  {u.status === 'disabled' ? <UserPlus size={12} /> : <UserMinus size={12} />} {u.status === 'disabled' ? 'RESTORE_ACCESS' : 'DISABLE_ACCOUNT'}
+                                  {u.trial_end_date?.startsWith('1970-01-01') ? <UserPlus size={12} /> : <UserMinus size={12} />} {u.trial_end_date?.startsWith('1970-01-01') ? 'RESTORE_ACCESS' : 'DISABLE_ACCOUNT'}
                                 </button>
                                 <button onClick={() => { deleteUser(u); setIsActionMenuOpen(null); }} 
                                   className="w-full text-left px-4 py-2.5 text-[10px] text-red-500 hover:bg-red-500 hover:text-black flex items-center gap-3">
